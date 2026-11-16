@@ -1,7 +1,10 @@
 
 import os
+import re
 from pathlib import Path
 from typing import TypedDict
+
+import streamlit as st
 
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -26,54 +29,71 @@ from prompts import (
 )
 
 
-# Load API key from .env file
+# =====================================================
+# 1. LOAD LOCAL ENVIRONMENT VARIABLES
+# =====================================================
 
 load_dotenv(
     dotenv_path=Path(__file__).resolve().parent / ".env"
 )
 
 
-# 1. Agent State
+# =====================================================
+# 2. AGENT STATE
+# =====================================================
 
 class AgentState(TypedDict, total=False):
 
     question: str
-
     retrieved: list
-
     relevant: bool
-
     relevance_note: str
-
     correction_attempted: bool
-
     context: str
-
     sources: list
-
     draft_answer: str
-
     reflection: str
-
     final_answer: str
-
     needs_human_review: bool
-
     status: str
 
 
-# 2. Load Groq AI Model
+# =====================================================
+# 3. GET GROQ API KEY
+# =====================================================
 
-def get_model():
+def get_groq_api_key():
 
+    # First check local .env or environment variables
     api_key = os.getenv("GROQ_API_KEY")
+
+    # If not found, check Streamlit Cloud Secrets
+    if not api_key:
+
+        try:
+            api_key = st.secrets.get("GROQ_API_KEY")
+
+        except Exception:
+            api_key = None
 
     if not api_key:
 
         raise ValueError(
             "GROQ_API_KEY not found. "
-            "Please check your .env file."
+            "Please add it to your local .env file "
+            "or Streamlit Community Cloud Secrets."
         )
+
+    return api_key
+
+
+# =====================================================
+# 4. LOAD GROQ AI MODEL
+# =====================================================
+
+def get_model():
+
+    api_key = get_groq_api_key()
 
     return ChatGroq(
 
@@ -86,7 +106,9 @@ def get_model():
     )
 
 
-# 3. Safety Screening Node
+# =====================================================
+# 5. SAFETY SCREENING NODE
+# =====================================================
 
 def safety_screen_node(state):
 
@@ -95,34 +117,26 @@ def safety_screen_node(state):
     sensitive_words = [
 
         "suicide",
-
         "kill myself",
-
         "self harm",
-
         "self-harm",
-
         "hurt myself",
-
         "end my life",
-
         "overdose",
-
         "abuse",
-
         "diagnose me",
-
         "which medication",
-
         "what medicine",
-
         "treatment for me"
 
     ]
 
     flagged = any(
+
         word in question
+
         for word in sensitive_words
+
     )
 
     return {
@@ -141,7 +155,9 @@ def initial_router(state):
     return "retrieve"
 
 
-# 4. Retrieval Node
+# =====================================================
+# 6. RETRIEVAL NODE
+# =====================================================
 
 def retrieve_node(state):
 
@@ -168,7 +184,9 @@ def retrieve_node(state):
     }
 
 
-# 5. Conditional Routing
+# =====================================================
+# 7. RELEVANCE ROUTER
+# =====================================================
 
 def relevance_router(state):
 
@@ -183,7 +201,9 @@ def relevance_router(state):
     return "insufficient"
 
 
-# 6. Corrective Retrieval Node
+# =====================================================
+# 8. CORRECTIVE RETRIEVAL NODE
+# =====================================================
 
 def corrective_retrieval_node(state):
 
@@ -231,7 +251,9 @@ def corrective_router(state):
     return "insufficient"
 
 
-# 7. Prepare Retrieved Context
+# =====================================================
+# 9. PREPARE RETRIEVED CONTEXT
+# =====================================================
 
 def prepare_context_node(state):
 
@@ -272,7 +294,9 @@ def prepare_context_node(state):
     }
 
 
-# 8. Insufficient Evidence Node
+# =====================================================
+# 10. INSUFFICIENT EVIDENCE NODE
+# =====================================================
 
 def insufficient_node(state):
 
@@ -305,7 +329,9 @@ def insufficient_node(state):
     }
 
 
-# 9. Answer Generation Node
+# =====================================================
+# 11. ANSWER GENERATION NODE
+# =====================================================
 
 def generate_node(state):
 
@@ -346,7 +372,9 @@ def generate_node(state):
     }
 
 
-# 10. Reflection Node - Improved Validation
+# =====================================================
+# 12. REFLECTION AND VALIDATION NODE
+# =====================================================
 
 def reflect_node(state):
 
@@ -384,39 +412,27 @@ def reflect_node(state):
 
     reflection = str(response.content).strip()
 
-    # Normalize Markdown formatting before checking verdict
+    # Remove Markdown formatting and inspect first verdict
+    normalized = re.sub(
+        r"^[\s>*#`]+",
+        "",
+        reflection
+    ).upper()
 
-    normalized = reflection.upper()
+    first_word = re.match(
+        r"^(SUPPORTED|NOT\s+SUPPORTED)\b",
+        normalized
+    )
 
-    for character in [
+    is_supported = (
 
-        "*",
+        first_word is not None
 
-        "#",
+        and first_word.group(1) == "SUPPORTED"
 
-        "`",
+    )
 
-        ">",
-
-        " ",
-
-        "\n",
-
-        "\t"
-
-    ]:
-
-        normalized = normalized.lstrip(character)
-
-    # Accept only an explicit SUPPORTED verdict
-
-    if (
-
-        normalized.startswith("SUPPORTED")
-
-        and not normalized.startswith("SUPPORTED NOT")
-
-    ):
+    if is_supported:
 
         return {
 
@@ -449,7 +465,9 @@ def reflect_node(state):
     }
 
 
-# 11. Human Review Node
+# =====================================================
+# 13. HUMAN REVIEW NODE
+# =====================================================
 
 def human_review_node(state):
 
@@ -482,77 +500,61 @@ def human_review_node(state):
     }
 
 
-# 12. Build LangGraph
+# =====================================================
+# 14. BUILD LANGGRAPH AGENT
+# =====================================================
 
 def build_agent():
 
     graph = StateGraph(AgentState)
 
-    graph.add_node(
+    # Register nodes
 
+    graph.add_node(
         "safety_screen",
-
         safety_screen_node
-
     )
 
     graph.add_node(
-
         "retrieve",
-
         retrieve_node
-
     )
 
     graph.add_node(
-
         "corrective_retrieval",
-
         corrective_retrieval_node
-
     )
 
     graph.add_node(
-
         "prepare_context",
-
         prepare_context_node
-
     )
 
     graph.add_node(
-
         "generate",
-
         generate_node
-
     )
 
     graph.add_node(
-
         "reflect",
-
         reflect_node
-
     )
 
     graph.add_node(
-
         "insufficient",
-
         insufficient_node
-
     )
 
     graph.add_node(
-
         "human_review",
-
         human_review_node
-
     )
+
+    # Entry point
 
     graph.set_entry_point("safety_screen")
+
+    # Safety routing
 
     graph.add_conditional_edges(
 
@@ -569,6 +571,8 @@ def build_agent():
         }
 
     )
+
+    # Initial retrieval routing
 
     graph.add_conditional_edges(
 
@@ -588,6 +592,8 @@ def build_agent():
 
     )
 
+    # Corrective retrieval routing
+
     graph.add_conditional_edges(
 
         "corrective_retrieval",
@@ -604,50 +610,41 @@ def build_agent():
 
     )
 
-    graph.add_edge(
+    # Answer generation workflow
 
+    graph.add_edge(
         "prepare_context",
-
         "generate"
-
     )
 
     graph.add_edge(
-
         "generate",
-
         "reflect"
-
     )
 
     graph.add_edge(
-
         "reflect",
-
         END
-
     )
 
-    graph.add_edge(
+    # End nodes
 
+    graph.add_edge(
         "human_review",
-
         END
-
     )
 
     graph.add_edge(
-
         "insufficient",
-
         END
-
     )
 
     return graph.compile()
 
 
-# 13. Ask Question
+# =====================================================
+# 15. ASK AGENT
+# =====================================================
 
 def ask_agent(question):
 
