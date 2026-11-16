@@ -1,977 +1,1442 @@
 # Mental Health Knowledge and Psychoeducation Agent
 
-## Project Notes in Easy English
+## Complete Project Notes in Easy English
 
-> **Project purpose:** This application gives general, evidence-grounded
-> mental health education using information stored in its own knowledge
-> base. It is designed to explain topics and show source references. It
-> is **not** a doctor, therapist, diagnostic system, or treatment
-> service.
+> **Project purpose:** This application provides general, evidence-grounded mental health education using information stored in its own knowledge base. It retrieves relevant information, generates educational answers using an AI language model, and displays source references.
+>
+> **Important:** This is an educational assistant. It is not a doctor, therapist, diagnostic system, or personalized treatment service.
 
-------------------------------------------------------------------------
+---
 
-## 1. What does the project do?
+# 1. What Does the Project Do?
 
-The project is a Mental Health Knowledge and Psychoeducation Agent.
+Our project is called **Mental Health Knowledge and Psychoeducation Agent**.
 
-A user enters a question, for example:
+It is an AI-powered application that answers general mental health education questions using a collection of reference documents.
 
--   What is anxiety?
--   What is stress?
--   Why is sleep important?
--   What does emotional wellbeing mean?
--   When should someone consider professional support?
+Users can ask questions such as:
 
-The system searches its local mental health documents, checks whether
-the retrieved information is relevant, and then uses an AI language
-model to prepare an educational response when enough supporting
-information is available.
+- What is anxiety?
+- What is depression?
+- What is stress?
+- How does stress affect mental health?
+- Why is sleep important?
+- What is emotional wellbeing?
+- When should someone seek professional support?
 
-If the knowledge base does not contain enough useful information, the
-system should say that it cannot provide a reliable answer from the
-available sources. It should not invent an answer.
+The system searches its knowledge base, retrieves relevant information, checks its relevance, and sends the retrieved information to a language model.
 
-### Main objectives
+The language model then generates an educational answer.
 
-1.  Answer general mental health education questions.
-2.  Use trusted reference documents instead of depending only on the
-    language model's memory.
-3.  show the sources used for an answer.
-4.  Identify when the available evidence is not sufficient.
-5.  Avoid diagnosis, treatment instructions, and unsupported medical
-    claims.
+If the available information is insufficient, the system should avoid generating an unsupported answer.
 
-------------------------------------------------------------------------
+## Main Objectives
 
-## 2. Technologies used and why
+1. Provide general mental health education.
+2. Use reference documents as supporting evidence.
+3. Retrieve information using RAG.
+4. Generate answers using a hosted AI language model.
+5. Check whether retrieved information is relevant.
+6. Attempt corrective retrieval when the initial search is unsuccessful.
+7. Validate generated answers against retrieved evidence.
+8. Display source references.
+9. Apply safety rules to sensitive questions.
 
-  ------------------------------------------------------------------------
-  Technology               What it does            Why we used it
-  ------------------------ ----------------------- -----------------------
-  **Python 3.11**          Main programming        It is used to write the
-                           language                application's logic and
-                                                   connect the different
-                                                   libraries.
+---
 
-  **Streamlit**            User interface          It lets us build a
-                                                   simple web app using
-                                                   Python without building
-                                                   a separate frontend in
-                                                   React.
+# 2. Technologies Used and Why
 
-  **LangChain**            Connects components     It makes it easier to
-                           such as document        build the RAG pipeline
-                           loading, text           by connecting these
-                           splitting, embeddings,  parts.
-                           vector search, and the  
-                           language model          
+| Technology | Purpose | Why We Used It |
+|---|---|---|
+| Python 3.11 | Main programming language | Implements the application's backend logic. |
+| Streamlit | Frontend and web application | Provides an interactive interface using Python. |
+| LangChain | Connects AI and RAG components | Helps with document loading, splitting, embeddings, vector search, and LLM integration. |
+| LangGraph | Agent workflow management | Controls the sequence of agent steps and conditional decisions. |
+| Groq API | Hosted AI inference | Allows the application to generate answers without running a language model locally. |
+| GPT-OSS 20B | Language model | Generates educational responses using retrieved information. |
+| Hugging Face | Embedding model provider | Provides the model used to convert text into numerical vectors. |
+| all-MiniLM-L6-v2 | Embedding model | Creates embeddings for questions and document chunks. |
+| ChromaDB | Vector database | Stores document chunks and embeddings for semantic retrieval. |
+| PyPDF | PDF text extraction | Allows the loader to read PDF documents. |
+| TXT files | Knowledge base | Store the mental health reference information. |
+| Python-dotenv | Environment variable management | Loads the Groq API key from the local `.env` file. |
+| Streamlit Community Cloud | Online hosting | Hosts the application so users can access it through a web browser. |
 
-  **LangGraph**            Manages the agent's     It helps control which
-                           workflow as connected   step runs next,
-                           steps (nodes)           including decisions
-                                                   such as whether
-                                                   evidence is relevant or
-                                                   another retrieval
-                                                   attempt is needed.
+## Important Difference Between the AI Components
 
-  **Ollama**               Runs a language model   It allows the project
-                           locally                 to use a local model
-                                                   rather than requiring a
-                                                   paid hosted AI API.
+These components have different responsibilities:
 
-  **Qwen 2.5 3B**          Language model          It is used to generate
-                                                   the natural-language
-                                                   educational response
-                                                   from the supplied
-                                                   context.
+- **Hugging Face:** Creates embeddings for searching.
+- **ChromaDB:** Stores and retrieves document chunks.
+- **Groq:** Provides hosted AI model inference.
+- **GPT-OSS 20B:** Generates the written educational answer.
+- **LangChain:** Connects the components.
+- **LangGraph:** Controls the agent workflow.
+- **Streamlit:** Displays the application to users.
 
-  **Hugging Face Sentence  Creates numerical       It converts document
-  Transformers**           representations called  text and questions into
-                           embeddings              vectors so that
-                                                   semantically similar
-                                                   content can be found.
+---
 
-  **`all-MiniLM-L6-v2`**   Embedding model         It is the specific
-                                                   embedding model
-                                                   configured in this
-                                                   project. It is
-                                                   relatively small and
-                                                   suitable for local
-                                                   semantic search.
+# 3. What Is RAG?
 
-  **ChromaDB**             Vector database         It stores document
-                                                   chunks and their
-                                                   embeddings, and
-                                                   searches for chunks
-                                                   similar to a user's
-                                                   question.
+RAG stands for **Retrieval-Augmented Generation**.
 
-  **PyPDF**                Reads PDF documents     It allows the document
-                                                   loader to extract text
-                                                   from PDF files.
+In simple English, RAG means:
 
-  **TXT files**            Store the project's     They provide the local
-                           source material         mental health
-                                                   information that the
-                                                   RAG system searches.
-  ------------------------------------------------------------------------
+1. Retrieve useful information from our own documents.
+2. Give the retrieved information to the language model.
+3. Generate an answer using that information.
 
-**Important difference:** Qwen generates the written response. Hugging
-Face creates embeddings for searching. ChromaDB stores and retrieves
-those embeddings. They do different jobs.
+## Why Did We Use RAG?
 
-------------------------------------------------------------------------
+A language model can generate answers from its training knowledge. However, it may also produce information that is not supported by our project sources.
 
-## 3. What is RAG, and why did we use it?
+RAG helps reduce this problem by providing relevant reference information before answer generation.
 
-**RAG** means **Retrieval-Augmented Generation**.
+For example:
 
-In easy words, RAG means:
+A user asks:
 
-1.  First, search for useful information in our own documents.
-2.  Give the retrieved information to the language model.
-3.  Ask the model to prepare an answer using that information.
+"What is anxiety?"
 
-### Why RAG is useful in this project
+The system:
 
-A normal language model may answer from information it learned during
-training. It may also produce information that is not supported by our
-project documents.
+1. Converts the question into an embedding.
+2. Searches ChromaDB.
+3. Retrieves relevant chunks from `anxiety.txt` and potentially other documents.
+4. Checks retrieval relevance.
+5. Sends the retrieved context to Groq.
+6. Receives an educational answer.
+7. Checks whether the answer is supported by the retrieved context.
 
-RAG helps ground the answer in the mental health references we provide.
-It also makes it possible to show which documents were retrieved.
+**Important:** RAG does not guarantee that an answer is medically correct. It helps ground the response in available sources.
 
-RAG does not guarantee that every answer is correct. That is why the
-project also needs relevance checks, validation, and clear safety
-limits.
+---
 
-------------------------------------------------------------------------
+# 4. Our Knowledge Base
 
-## 4. Our knowledge base
+Our project contains ten mental health reference documents.
 
-The project has a folder:
+Folder structure:
 
-``` text
+```text
 data/
 └── mental_health/
+    ├── anxiety.txt
+    ├── depression.txt
+    ├── emotional_wellbeing.txt
+    ├── mental_health_awareness.txt
+    ├── mental_health_terminology.txt
+    ├── professional_support.txt
+    ├── psychological_wellbeing.txt
+    ├── self_care.txt
+    ├── sleep.txt
+    └── stress.txt
 ```
 
-It contains ten text documents:
+Each document contains educational information about a mental health topic.
 
-1.  `anxiety.txt`
-2.  `depression.txt`
-3.  `emotional_wellbeing.txt`
-4.  `mental_health_awareness.txt`
-5.  `mental_health_terminology.txt`
-6.  `professional_support.txt`
-7.  `psychological_wellbeing.txt`
-8.  `self_care.txt`
-9.  `sleep.txt`
-10. `stress.txt`
+The documents can include:
 
-Each document contains information such as:
+- Topic title
+- Source organization
+- Reference URL
+- Educational content
 
--   Title of the topic
--   Source organization
--   Reference URL
--   Short educational content
+## Why Did We Create These Documents?
 
-For example, `anxiety.txt` contains a title, the National Institute of
-Mental Health as its source, a reference URL, and general information
-about anxiety.
+They are the information sources for our RAG system.
 
-### Why did we create these documents?
+Instead of searching the entire internet every time a user asks a question, the system searches our prepared knowledge base.
 
-They form the system's local knowledge base. When a user asks a
-question, the RAG system searches these documents for relevant
-information.
+## Why Are Source Names and URLs Important?
 
-### Why include source names and URLs?
+They help identify where information originated.
 
-They help us identify where the educational information came from and
-provide traceability. A source URL in a text file is a reference; it
-does not mean the application automatically checks that website every
-time a user asks a question.
+The application can display source references so users can identify the documents used to support an answer.
 
-------------------------------------------------------------------------
+A URL stored in a document is a reference. It does not mean the application automatically visits and verifies that website during every question.
 
-## 5. Document loading and text chunking
+---
 
-**Main file:** `document_loader.py`
+# 5. Document Loading and Text Chunking
 
-This file has two important jobs.
+**Main file: `document_loader.py`**
 
-### A. Loading documents
+This file prepares documents for the RAG system.
+
+It performs two main tasks.
+
+## A. Loading Documents
 
 The `load_documents()` function:
 
--   Looks inside the mental health data folder.
--   Finds supported `.txt` and `.pdf` files.
--   Reads their text.
--   Creates LangChain `Document` objects.
--   Adds metadata such as the source filename and file path.
+1. Opens the mental health data folder.
+2. Finds supported TXT and PDF files.
+3. Reads their contents.
+4. Creates LangChain Document objects.
+5. Adds metadata such as the source filename.
 
-**Why do we use it?**
+### Why Do We Need Document Loading?
 
-The system needs to read the source files before it can search them.
+The system cannot search documents until their content has been read and prepared.
 
-### B. Splitting documents into chunks
+## B. Splitting Documents into Chunks
 
-The `split_documents()` function uses LangChain's
-`RecursiveCharacterTextSplitter`.
+The `split_documents()` function uses:
 
-The current configuration is:
+`RecursiveCharacterTextSplitter`
 
-``` python
+Our configuration:
+
+```python
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 100
 ```
 
--   **Chunk size 700:** a document is divided into smaller text pieces,
-    with a target size of about 700 characters.
--   **Overlap 100:** neighbouring chunks share about 100 characters.
+**Chunk size 700:**
 
-**Why split documents?**
+The text is divided into smaller pieces with a target size of approximately 700 characters.
 
-Searching one very large document can be less precise. Smaller chunks
-help the system retrieve the part that is most related to the user's
-question.
+**Chunk overlap 100:**
 
-**Why use overlap?**
+Neighbouring chunks share approximately 100 characters.
 
-It helps avoid losing context when an important sentence or idea is near
-a chunk boundary.
+### Why Do We Use Chunking?
 
-The loader test previously confirmed that the project loaded 10
-documents and created 10 chunks with the current source files and
-settings.
+Large documents are difficult to search precisely.
 
-------------------------------------------------------------------------
+Smaller chunks help ChromaDB retrieve the specific sections that relate to a user's question.
 
-## 6. Embeddings: what are they?
+### Why Do We Use Overlap?
 
-An **embedding** is a list of numbers that represents the meaning of a
-piece of text.
+Overlap helps preserve context when a sentence or important idea is near the end of a chunk.
 
-For example, the question:
+### Previous Test Result
 
-> What is anxiety?
+Our loader test confirmed:
 
-and a document sentence about anxiety may use different words but have
-similar meanings. Embeddings help the system find that relationship.
+- 10 documents loaded.
+- 10 chunks created with the tested documents and current settings.
 
-### Where do we use Hugging Face?
+---
 
-**Main file:** `rag_pipeline.py`
+# 6. Embeddings and Hugging Face
 
-The project imports:
+**Main file: `rag_pipeline.py`**
 
-``` python
+An embedding is a numerical representation of text.
+
+For example:
+
+- Question: What is anxiety?
+- Document: Anxiety is a feeling of worry or fear.
+
+Although the wording is different, the meanings are related.
+
+Embeddings help the system identify this relationship.
+
+## Where Do We Use Hugging Face?
+
+Our code uses:
+
+```python
 from langchain_huggingface import HuggingFaceEmbeddings
 ```
 
-The embedding model is configured in `config.py`:
+The configured embedding model is:
 
-``` python
+```python
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 ```
 
-The `get_embeddings()` function creates the embedding model:
+The embedding function creates numerical representations of:
 
-``` python
-_embeddings = HuggingFaceEmbeddings(
+- Document chunks
+- User questions
+
+Example configuration:
+
+```python
+HuggingFaceEmbeddings(
     model_name=EMBEDDING_MODEL,
     model_kwargs={"device": "cpu"},
     encode_kwargs={"normalize_embeddings": True}
 )
 ```
 
-### Why use this model?
+## Why Did We Choose all-MiniLM-L6-v2?
 
--   It creates embeddings for both document chunks and user questions.
--   It supports semantic search, which looks for meaning rather than
-    only exact keyword matches.
--   The project can run it on the CPU.
+- It is relatively lightweight.
+- It supports semantic search.
+- It can run using the CPU.
+- It works with LangChain and ChromaDB.
 
-**Remember:** Hugging Face embeddings do not write the final chatbot
-answer. They help find relevant information.
+**Remember:** Hugging Face creates embeddings. It does not generate the final chatbot response.
 
-------------------------------------------------------------------------
+---
 
-## 7. ChromaDB: why do we use it?
+# 7. ChromaDB: Our Vector Database
 
-**Main file:** `rag_pipeline.py`
+**Main file: `rag_pipeline.py`**
 
-ChromaDB is our vector database.
+ChromaDB is used to store document chunks and their embeddings.
 
-In easy words, it stores the document chunks and their embeddings so the
-system can search them later.
+Our configuration includes:
 
-The project configuration includes:
-
-``` python
+```python
 CHROMA_DIR = BASE_DIR / "chroma_db"
+
 COLLECTION_NAME = "mental_health_knowledge"
 ```
 
-The `get_vectorstore()` function creates or opens the Chroma collection.
+## How Does ChromaDB Work?
 
-### What happens in ChromaDB?
+1. The documents are loaded.
+2. The documents are divided into chunks.
+3. Hugging Face converts the chunks into embeddings.
+4. ChromaDB stores the chunks and embeddings.
+5. A user submits a question.
+6. The question is converted into an embedding.
+7. ChromaDB searches for similar document chunks.
+8. The retrieved results are returned to the RAG pipeline.
 
-1.  The document chunks are converted into embeddings.
-2.  ChromaDB stores the chunks and their vector representations.
-3.  A user asks a question.
-4.  The question is converted into an embedding.
-5.  ChromaDB finds chunks with similar meanings.
-6.  The most relevant search results are returned to the application.
+## Why Use Vector Search?
 
-### Why not search only with normal keywords?
+Normal keyword search mainly looks for matching words.
 
-Keyword search may miss useful information when the user uses different
-wording. Vector search can find text with similar meaning even if the
-exact words are different.
+Vector search compares numerical representations of meaning.
 
-------------------------------------------------------------------------
+For example, a question about feeling worried may retrieve information about anxiety even when the wording is not identical.
 
-## 8. Building the knowledge base
+---
 
-**Main file:** `rag_pipeline.py`
+# 8. Building the Knowledge Base
 
-The function `build_knowledge_base()` prepares the searchable
-collection.
+**Main file: `rag_pipeline.py`**
 
-Its general process is:
+The main function is:
 
-1.  Open the Chroma vector store.
-2.  Check whether it already contains document chunks.
-3.  If data already exists, reuse it instead of adding the same
-    documents again.
-4.  If the collection is empty, load the source documents.
-5.  Split the documents into chunks.
-6.  Add the chunks to ChromaDB.
+```python
+build_knowledge_base()
+```
 
-The function also supports `force_rebuild=True`, which deletes and
-rebuilds the collection.
+Its purpose is to prepare the documents for searching.
 
-**Why check whether data already exists?**
+The general process is:
 
-So the app does not need to add the same documents every time it starts.
+1. Open or create the ChromaDB collection.
+2. Check whether the collection already contains documents.
+3. Reuse existing data when appropriate.
+4. Load the source documents if the collection needs to be populated.
+5. Split the documents into chunks.
+6. Create embeddings.
+7. Store the chunks in ChromaDB.
 
-**Be careful:** Rebuilding deletes the existing collection before adding
-the documents again. Use this when you intentionally want to refresh the
-knowledge base.
+The function also supports:
 
-------------------------------------------------------------------------
+```python
+build_knowledge_base(force_rebuild=True)
+```
 
-## 9. Retrieval and relevance checking
+This can be used to intentionally rebuild the knowledge base.
 
-**Main file:** `rag_pipeline.py`
+### Why Do We Check Existing Data?
 
-### Retrieval
+We do not want to add duplicate document chunks every time the application starts.
+
+### Important Deployment Detail
+
+Our `chroma_db/` directory is included in `.gitignore`.
+
+This means the local database is not uploaded to GitHub.
+
+On Streamlit Community Cloud, the application creates its own database from the source documents.
+
+We successfully tested the online application and confirmed:
+
+**Knowledge base ready! 10 chunks indexed.**
+
+This confirms that the online application can load and index the ten source chunks.
+
+---
+
+# 9. Retrieval and Relevance Assessment
+
+**Main file: `rag_pipeline.py`**
+
+## A. Document Retrieval
 
 The function:
 
-``` python
+```python
 retrieve_documents(question, k=TOP_K)
 ```
 
-searches ChromaDB for chunks related to the user's question.
+searches ChromaDB for document chunks related to the question.
 
-The current setting is:
+Our configuration:
 
-``` python
+```python
 TOP_K = 5
 ```
 
-This means the system requests up to five matching chunks.
+This means the retrieval function requests up to five matching chunks.
 
-### Relevance assessment
+## B. Relevance Assessment
 
 The function:
 
-``` python
+```python
 assess_relevance(results)
 ```
 
-checks the distances returned by ChromaDB.
+checks the distance values returned by ChromaDB.
 
-The current configuration is:
+Our configured threshold:
 
-``` python
+```python
 MAX_RELEVANCE_DISTANCE = 1.25
 ```
 
-The function finds the best (lowest) distance. If it is at or below the
-configured threshold, the results are treated as relevant.
+In our implementation, the best (lowest) returned distance is compared with this threshold.
 
-**Easy meaning of distance:**
+General interpretation:
 
--   A lower distance generally means the retrieved text is closer to the
-    question in the vector space.
--   A higher distance generally means it is less similar.
--   The threshold is a project setting, not a universal medical or
-    scientific rule.
+- Lower distance: closer vector similarity.
+- Higher distance: weaker vector similarity.
+- Distance at or below the configured threshold: accepted as relevant by our current rule.
 
-**Important limitation:** The current `assess_relevance()` function
-checks the best distance. It does not mean that every returned chunk is
-relevant. A result list can contain some useful chunks and some weak
-matches.
+The threshold is a project configuration, not a universal scientific or medical standard.
 
-### Example from our test
+## Example
 
-For the test question **"What is anxiety?"**, the project retrieved five
-chunks. The `anxiety.txt` result had a distance of about `0.504`, and
-the relevance check returned `True` because this was below the
-configured threshold of `1.25`.
+User question:
 
-This test showed that the document loading, embeddings, ChromaDB
-storage, retrieval, and basic relevance check were working.
+"What is anxiety?"
 
-------------------------------------------------------------------------
+The system searches ChromaDB and attempts to retrieve relevant chunks.
 
-## 10. Language model: Ollama and Qwen
+If the relevance check accepts the results, the agent can continue to answer generation.
 
-The project configuration contains:
+If the initial retrieval is not accepted, the agent can attempt corrective retrieval.
 
-``` python
-OLLAMA_MODEL = "qwen2.5:3b"
-OLLAMA_BASE_URL = "http://localhost:11434"
+**Important limitation:** Our current relevance assessment uses a distance-based heuristic. It does not prove that every returned chunk is useful or that the source itself is factually correct.
+
+---
+
+# 10. Groq API and GPT-OSS 20B
+
+**Main file: `agent.py`**
+
+Our latest project version uses **Groq API** instead of local Ollama.
+
+Previously, we used:
+
+- Ollama
+- Qwen 2.5 3B
+
+In the updated version, we use:
+
+- Groq API
+- GPT-OSS 20B (`openai/gpt-oss-20b`)
+
+## What Is Groq?
+
+Groq provides hosted AI model inference through an API.
+
+In simple words, our application sends a request to Groq, and Groq runs the selected language model and returns the response.
+
+This means we do not need to run the language model locally using Ollama.
+
+## What Is GPT-OSS 20B?
+
+GPT-OSS 20B is the language model configured in our application.
+
+It generates educational responses using:
+
+- The user's question.
+- The retrieved information from our knowledge base.
+- Instructions provided through our system prompt.
+
+## Why Did We Change from Ollama to Groq?
+
+Our original local version depended on Ollama running on the computer.
+
+That created a problem for online deployment because the hosted application could not use the Ollama service running on our personal computer.
+
+We changed to Groq so the deployed application could communicate with a hosted language model.
+
+### Current Model Configuration
+
+```python
+return ChatGroq(
+    model="openai/gpt-oss-20b",
+    api_key=api_key,
+    temperature=0.1
+)
 ```
 
-### What is Ollama?
+### Important Difference
 
-Ollama is a tool that runs supported AI language models on the local
-computer.
+**Groq provides the model inference service. GPT-OSS 20B is the model.**
 
-### What is Qwen 2.5 3B?
+Groq is not the embedding model and does not replace ChromaDB.
 
-Qwen 2.5 3B is the language model selected for this project. The model
-is used to turn the retrieved information into a readable educational
-response.
+---
 
-### Why use a local model?
+# 11. API Key Management
 
--   It avoids depending on a paid hosted model API for normal
-    generation.
--   It can run locally after the model has been downloaded.
--   It is useful for a student project with a limited budget.
+**Main file: `agent.py`**
 
-### What does the model receive?
+Our application needs a Groq API key to communicate with the hosted model.
 
-In a RAG workflow, the model should receive the user's question and the
-retrieved source information. The prompt should instruct it to stay
-within the evidence and say when the evidence is insufficient.
+We use two methods depending on where the application is running.
 
-------------------------------------------------------------------------
+## A. Local VS Code
 
-## 11. LangChain and LangGraph: what is the difference?
+The API key is stored in a `.env` file in the project root.
 
-These tools are related, but they are not the same.
+Example:
 
-### LangChain
-
-LangChain helps connect components, for example:
-
--   Document objects
--   Text splitting
--   Embedding models
--   Vector databases
--   Language models
-
-In our project, the document loader and RAG pipeline use LangChain
-components.
-
-### LangGraph
-
-LangGraph is used to organize an agent workflow into steps called
-**nodes**.
-
-A node performs one job. The workflow can move from one node to another
-depending on the result of a step.
-
-For this project, the intended workflow includes steps such as:
-
--   Receive the user's question.
--   Retrieve relevant documents.
--   Assess whether the retrieved evidence is relevant.
--   Try corrective retrieval when the first search is not good enough,
-    if that path is implemented.
--   Generate an educational response when enough evidence is available.
--   Reflect on or validate the response.
--   Stop or report insufficient evidence when the sources do not support
-    a reliable answer.
-
-**Why use LangGraph?**
-
-A simple RAG pipeline is usually a straight sequence. An agent workflow
-may need decisions and different paths. LangGraph helps represent and
-control those paths.
-
-**Important:** The exact node names, edges, conditions, and retry limits
-must be checked in the project's `agent.py`. This guide describes the
-intended workflow; use the actual source code when explaining exact
-implementation details to a teacher.
-
-------------------------------------------------------------------------
-
-## 12. Streamlit: the user interface
-
-**Main file:** `app.py`
-
-Streamlit provides the page where a user interacts with the project.
-
-The general user journey is:
-
-1.  Open the Streamlit application.
-2.  Enter a mental health education question.
-3.  Submit the question.
-4.  The backend processes it using the agent and RAG components.
-5.  The page displays the response and, where available, source
-    references and validation information.
-
-### Why Streamlit?
-
--   It is Python-based.
--   It is quick to build and demonstrate.
--   It avoids needing a separate React or mobile frontend for this
-    project.
-
-------------------------------------------------------------------------
-
-## 13. Overall system workflow
-
-``` text
-Trusted mental health TXT/PDF documents
-                 |
-                 v
-        document_loader.py
-       Read and load documents
-                 |
-                 v
-        Text chunking
-       (size 700, overlap 100)
-                 |
-                 v
-     Hugging Face embeddings
-       all-MiniLM-L6-v2
-                 |
-                 v
-            ChromaDB
-       Store searchable chunks
-                 |
-                 |
-User question --> Streamlit app
-                 |
-                 v
-           Agent workflow
-             LangGraph
-                 |
-                 v
-        Retrieve relevant chunks
-                 |
-                 v
-       Check retrieval relevance
-                 |
-          +------+------+
-          |             |
-       Relevant      Not relevant
-          |             |
-          v             v
-   Qwen via Ollama   Corrective search /
-   prepares answer   insufficient evidence
-          |
-          v
-     Validate response
-          |
-          v
-   Show educational answer,
-   source references and status
+```env
+GROQ_API_KEY=gsk_your_actual_key
 ```
 
-This is a high-level explanation. The exact paths and node connections
-should match the current `agent.py` implementation.
+Python-dotenv loads the key:
 
-------------------------------------------------------------------------
-
-## 14. Safety rules
-
-Mental health is a sensitive subject, so the application must follow
-clear limits.
-
-1.  **Education only:** Explain general concepts; do not act as a mental
-    health professional.
-2.  **No diagnosis:** Do not tell a user that they have depression,
-    anxiety, or another condition.
-3.  **No treatment decisions:** Do not prescribe medication or create a
-    personal treatment plan.
-4.  **Use evidence:** Base answers on the retrieved project sources.
-5.  **Do not invent facts:** If evidence is missing, clearly say so.
-6.  **Show references:** Display the source documents used when
-    possible.
-7.  **Sensitive or harmful situations:** Follow the project's safety and
-    human-review process. Do not treat an automated answer as a
-    substitute for urgent professional or emergency help.
-
-A disclaimer alone is not enough. The system's prompts, workflow,
-validation, and user interface should all support these limits.
-
-------------------------------------------------------------------------
-
-## 15. Important configuration settings
-
-**Main file:** `config.py`
-
-  ---------------------------------------------------------------------------------------------
-  Setting                    Current value                              Meaning
-  -------------------------- ------------------------------------------ -----------------------
-  `DATA_DIR`                 `data/mental_health`                       Location of source
-                                                                        documents
-
-  `CHROMA_DIR`               `chroma_db`                                Local ChromaDB storage
-                                                                        folder
-
-  `OLLAMA_MODEL`             `qwen2.5:3b`                               Language model name
-
-  `OLLAMA_BASE_URL`          `http://localhost:11434`                   Local Ollama service
-                                                                        address
-
-  `EMBEDDING_MODEL`          `sentence-transformers/all-MiniLM-L6-v2`   Model used to create
-                                                                        embeddings
-
-  `COLLECTION_NAME`          `mental_health_knowledge`                  ChromaDB collection
-                                                                        name
-
-  `CHUNK_SIZE`               `700`                                      Target chunk size
-
-  `CHUNK_OVERLAP`            `100`                                      Shared text between
-                                                                        neighbouring chunks
-
-  `TOP_K`                    `5`                                        Number of chunks
-                                                                        requested during
-                                                                        retrieval
-
-  `MAX_RELEVANCE_DISTANCE`   `1.25`                                     Configured
-                                                                        relevance-distance
-                                                                        threshold
-  ---------------------------------------------------------------------------------------------
-
-Changing a setting can change retrieval behaviour. For example,
-increasing `TOP_K` retrieves more chunks, but some extra chunks may be
-less relevant. Changing the relevance threshold also changes which
-results pass the relevance check.
-
-------------------------------------------------------------------------
-
-## 16. Important project files
-
-  -----------------------------------------------------------------------
-  File or folder                      Responsibility
-  ----------------------------------- -----------------------------------
-  `app.py`                            Streamlit user interface and app
-                                      entry point
-
-  `config.py`                         Central project settings
-
-  `document_loader.py`                Loads TXT/PDF files and splits them
-                                      into chunks
-
-  `rag_pipeline.py`                   Creates embeddings, opens ChromaDB,
-                                      builds the knowledge base,
-                                      retrieves documents, and assesses
-                                      relevance
-
-  `agent.py`                          Agent workflow and its
-                                      decision-making logic; check this
-                                      file for exact LangGraph nodes and
-                                      edges
-
-  `data/mental_health/`               Source knowledge documents
-
-  `chroma_db/`                        Local vector database storage
-
-  `test_loader.py`                    Tests document loading and chunking
-
-  `test_rag.py`                       Tests knowledge-base creation,
-                                      vector retrieval, and relevance
-                                      assessment
-
-  `requirements.txt`                  Python packages required by the
-                                      project
-
-  `.venv/`                            Local Python virtual environment;
-                                      normally not shared as project
-                                      source code
-  -----------------------------------------------------------------------
-
-If your current project has additional files, explain them according to
-their actual code. Do not claim a function exists in a file until you
-have checked it.
-
-------------------------------------------------------------------------
-
-## 17. How to run the project
-
-Run these commands in the VS Code terminal from the project folder.
-
-### Step 1: Activate the virtual environment
-
-PowerShell:
-
-``` powershell
-.\.venv\Scripts\Activate.ps1
+```python
+load_dotenv(
+    dotenv_path=Path(__file__).resolve().parent / ".env"
+)
 ```
 
-If your environment folder is named `venv` instead, use:
+## B. Streamlit Community Cloud
 
-``` powershell
+For online deployment, we add the API key to:
+
+Streamlit Community Cloud → App Settings → Secrets.
+
+Example:
+
+```toml
+GROQ_API_KEY = "gsk_your_actual_key"
+```
+
+The updated `get_groq_api_key()` function checks:
+
+1. Local environment variables.
+2. Streamlit Cloud Secrets if the key is not found locally.
+
+This allows the same application to work in both environments.
+
+## Why Is `.env` Not Uploaded to GitHub?
+
+The `.env` file contains a private API key.
+
+Uploading it publicly could expose the key to other people.
+
+Our `.gitignore` includes:
+
+```gitignore
+.env
+.env.*
+!.env.example
+```
+
+The actual API key should remain private.
+
+---
+
+# 12. LangChain and LangGraph
+
+These are two different technologies with different responsibilities.
+
+## A. LangChain
+
+LangChain provides components for building applications that use language models.
+
+In our project, it helps with:
+
+- Document loading.
+- Text splitting.
+- Embeddings.
+- Vector database integration.
+- Connecting to Groq.
+- Sending prompts to the language model.
+
+Examples from our code:
+
+```python
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from langchain_chroma import Chroma
+
+from langchain_groq import ChatGroq
+```
+
+## B. LangGraph
+
+LangGraph controls the agent workflow.
+
+It organizes the application into nodes and edges.
+
+A node performs a particular task.
+
+An edge connects one node to another.
+
+A conditional edge decides which node should execute next.
+
+### Why Did We Use LangGraph?
+
+Our project needs more than a simple question-and-answer sequence.
+
+It must:
+
+- Screen sensitive questions.
+- Retrieve information.
+- Check relevance.
+- Attempt corrective retrieval.
+- Stop when evidence is insufficient.
+- Generate an answer.
+- Validate the generated response.
+
+LangGraph makes these different paths easier to organize.
+
+---
+
+# 13. Complete LangGraph Agent Workflow
+
+**Main file: `agent.py`**
+
+Our updated implementation has eight registered nodes.
+
+| Node | Responsibility |
+|---|---|
+| `safety_screen` | Checks whether the question contains configured sensitive terms. |
+| `retrieve` | Searches the knowledge base for relevant documents. |
+| `corrective_retrieval` | Attempts another search using a revised question. |
+| `prepare_context` | Combines retrieved document text and source information. |
+| `generate` | Uses Groq to generate an educational answer. |
+| `reflect` | Checks whether the generated answer is supported by the retrieved context. |
+| `insufficient` | Returns an insufficient-evidence response. |
+| `human_review` | Returns a safety response for flagged questions. |
+
+## Workflow Explanation
+
+### Step 1: Safety Screening
+
+The first node is:
+
+```python
+safety_screen_node()
+```
+
+It checks the user's question against a list of configured sensitive terms.
+
+Examples include:
+
+- Suicide
+- Self-harm
+- Overdose
+- Diagnose me
+- Which medication?
+
+If a configured term is found, the workflow routes to the human-review response.
+
+Otherwise, it continues to retrieval.
+
+**Important:** This is a basic keyword-based safety screen. It cannot detect every sensitive situation or understand every possible meaning.
+
+### Step 2: Initial Retrieval
+
+The node:
+
+```python
+retrieve_node()
+```
+
+calls:
+
+```python
+retrieve_documents()
+```
+
+It retrieves relevant document chunks from ChromaDB and checks their relevance.
+
+### Step 3: Relevance Routing
+
+The function:
+
+```python
+relevance_router()
+```
+
+decides what happens next.
+
+There are two main possibilities:
+
+- Relevant evidence: Continue to context preparation.
+- Insufficient relevance: Attempt corrective retrieval.
+
+### Step 4: Corrective Retrieval
+
+The node:
+
+```python
+corrective_retrieval_node()
+```
+
+creates a revised query:
+
+```python
+revised_question = (
+    "Mental health educational information about: "
+    + state["question"]
+)
+```
+
+It searches ChromaDB again with a larger requested number of results.
+
+The system then checks the new results.
+
+If they are relevant, the workflow continues.
+
+If they are still not relevant, it moves to the insufficient-evidence node.
+
+### Step 5: Prepare Context
+
+The node:
+
+```python
+prepare_context_node()
+```
+
+collects:
+
+- Source filename.
+- Retrieval distance.
+- Retrieved document content.
+
+It combines the retrieved information into one context string.
+
+It also collects the source names for display.
+
+### Step 6: Generate Answer
+
+The node:
+
+```python
+generate_node()
+```
+
+sends the following to Groq:
+
+- System instructions.
+- User question.
+- Retrieved evidence.
+
+Groq uses GPT-OSS 20B to generate the educational answer.
+
+### Step 7: Reflection and Validation
+
+The node:
+
+```python
+reflect_node()
+```
+
+sends the retrieved context and generated answer to the model for a support check.
+
+The model is instructed to begin with one of two verdicts:
+
+- SUPPORTED
+- NOT SUPPORTED
+
+If the verdict is accepted as SUPPORTED, the answer is returned with:
+
+```text
+VALIDATED
+```
+
+Otherwise, the application returns a message explaining that the generated answer could not be validated.
+
+**Important:** This is an automated model-based check, not independent proof of factual or clinical accuracy.
+
+### Step 8: Insufficient Evidence
+
+The node:
+
+```python
+insufficient_node()
+```
+
+is used when the retrieval and corrective retrieval attempts do not provide accepted evidence.
+
+The application returns a message explaining that it cannot provide a reliable answer from the available knowledge base.
+
+### Step 9: Human Review
+
+The node:
+
+```python
+human_review_node()
+```
+
+returns a safety-focused response when the initial keyword screening flags a question.
+
+It does not diagnose or provide personalized clinical instructions.
+
+---
+
+# 14. Overall System Architecture
+
+```text
+             MENTAL HEALTH SOURCE DOCUMENTS
+                   10 TXT DOCUMENTS
+                          |
+                          v
+                  DOCUMENT LOADER
+                 document_loader.py
+                          |
+                          v
+                    TEXT CHUNKING
+                 Size: 700 characters
+                 Overlap: 100 characters
+                          |
+                          v
+                 HUGGING FACE MODEL
+                   all-MiniLM-L6-v2
+                          |
+                          v
+                     CHROMADB
+                 Store document vectors
+                          |
+                          |
+                          v
+USER QUESTION ------> STREAMLIT APP
+                          |
+                          v
+                    LANGGRAPH AGENT
+                       agent.py
+                          |
+                          v
+                   SAFETY SCREENING
+                          |
+                  +-------+-------+
+                  |               |
+              Sensitive       Normal query
+                  |               |
+                  v               v
+             HUMAN REVIEW     RETRIEVAL
+                                  |
+                                  v
+                         RELEVANCE CHECK
+                                  |
+                       +----------+----------+
+                       |                     |
+                    Relevant            Not relevant
+                       |                     |
+                       v                     v
+                 PREPARE CONTEXT     CORRECTIVE RETRIEVAL
+                       |                     |
+                       |               +-----+------+
+                       |               |            |
+                       |            Relevant     Not relevant
+                       |               |            |
+                       |               |            v
+                       |               |       INSUFFICIENT
+                       |               |         EVIDENCE
+                       |               |
+                       +-------+-------+
+                               |
+                               v
+                         GROQ API
+                               |
+                               v
+                         GPT-OSS 20B
+                               |
+                               v
+                         GENERATE ANSWER
+                               |
+                               v
+                         REFLECTION CHECK
+                               |
+                               v
+                      VALIDATION RESULT
+                               |
+                               v
+                  ANSWER + SOURCES + STATUS
+                               |
+                               v
+                        STREAMLIT UI
+```
+
+---
+
+# 15. Streamlit Frontend
+
+**Main file: `app.py`**
+
+Streamlit provides the user interface.
+
+It allows users to:
+
+1. Open the application.
+2. Enter a mental health question.
+3. Submit the question.
+4. Wait for the agent to process it.
+5. Read the educational answer.
+6. View retrieval relevance information.
+7. See retrieved document references.
+8. Read the reflection and validation status.
+9. Inspect retrieved evidence.
+
+## Knowledge Base Button
+
+The application also includes:
+
+**Build / Check Knowledge Base**
+
+This button calls:
+
+```python
+build_knowledge_base()
+```
+
+It prepares the ChromaDB knowledge base from the source documents.
+
+Our online test successfully displayed:
+
+```text
+Knowledge base ready! 10 chunks indexed.
+```
+
+## Why Did We Use Streamlit?
+
+- It is easy to build with Python.
+- It provides an interactive web interface.
+- It does not require a separate React frontend.
+- It supports online deployment through Streamlit Community Cloud.
+
+---
+
+# 16. Online Deployment Architecture
+
+Our project now supports both local development and online use.
+
+## Previous Version: Local Ollama
+
+Previously, the application used:
+
+```text
+Streamlit
+    |
+    v
+Python Backend
+    |
+    v
+RAG Pipeline
+    |
+    v
+ChromaDB
+    |
+    v
+Ollama
+    |
+    v
+Qwen 2.5 3B
+```
+
+The language model ran on the local computer.
+
+The computer needed Ollama installed and running.
+
+## Updated Version: Hosted Groq
+
+Our current architecture is:
+
+```text
+             USER
+              |
+              v
+        WEB BROWSER
+              |
+              v
+     STREAMLIT COMMUNITY CLOUD
+              |
+              v
+       STREAMLIT APPLICATION
+              |
+              v
+         PYTHON BACKEND
+              |
+              v
+        LANGGRAPH AGENT
+              |
+              v
+          RAG PIPELINE
+              |
+              v
+           CHROMADB
+              |
+              v
+       RETRIEVED CONTEXT
+              |
+              v
+           GROQ API
+              |
+              v
+         GPT-OSS 20B
+              |
+              v
+       GENERATED ANSWER
+              |
+              v
+        STREAMLIT OUTPUT
+```
+
+## Why Did We Change to Groq?
+
+Ollama was running on our personal computer.
+
+When we deployed the application online, the cloud server could not directly access the Ollama service running on our computer.
+
+Groq provides hosted model inference, so our online application can send requests to its API.
+
+### Benefits
+
+- Users do not need Ollama installed.
+- The language model does not need to run on the user's computer.
+- The application can be accessed through a web browser.
+- The same backend workflow can be used locally and online.
+
+### Important Deployment Requirements
+
+- The source documents must be uploaded to GitHub.
+- The ChromaDB database must be created in the cloud environment.
+- The Groq API key must be configured in Streamlit Cloud Secrets.
+- Python dependencies must be included in `requirements.txt`.
+
+The cloud application needs access to the internet to communicate with Groq.
+
+---
+
+# 17. Safety Rules
+
+Mental health is a sensitive subject. Our system is designed for general education only.
+
+The main safety rules are:
+
+1. Do not diagnose a user.
+2. Do not prescribe medication.
+3. Do not create personalized treatment instructions.
+4. Use retrieved information as supporting evidence.
+5. Do not invent information when evidence is insufficient.
+6. Display source references when available.
+7. Flag configured sensitive questions for the human-review response.
+8. Encourage qualified professional support when appropriate.
+
+A disclaimer alone is not enough. The system also uses prompts, safety screening, retrieval checks, and reflection.
+
+**Limitation:** Automated screening and model-based validation cannot replace professional human review.
+
+---
+
+# 18. Important Configuration Settings
+
+**Main file: `config.py`**
+
+| Setting | Current Value | Purpose |
+|---|---|---|
+| `DATA_DIR` | `data/mental_health` | Source document folder |
+| `CHROMA_DIR` | `chroma_db` | Local vector database storage |
+| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model |
+| `COLLECTION_NAME` | `mental_health_knowledge` | ChromaDB collection |
+| `CHUNK_SIZE` | `700` | Target text chunk size |
+| `CHUNK_OVERLAP` | `100` | Overlap between chunks |
+| `TOP_K` | `5` | Number of chunks requested during initial retrieval |
+| `MAX_RELEVANCE_DISTANCE` | `1.25` | Relevance distance threshold |
+
+## Language Model Configuration
+
+The current model is configured in `agent.py`:
+
+```python
+model="openai/gpt-oss-20b"
+```
+
+The API key is retrieved from:
+
+- Local `.env` file.
+- Streamlit Community Cloud Secrets.
+
+Ollama and Qwen are not used by the current Groq-based agent.
+
+---
+
+# 19. Important Project Files
+
+| File / Folder | Responsibility |
+|---|---|
+| `app.py` | Streamlit frontend and application entry point |
+| `agent.py` | LangGraph nodes, routing, Groq integration, safety and reflection |
+| `rag_pipeline.py` | Embeddings, ChromaDB, retrieval and relevance assessment |
+| `document_loader.py` | Loads TXT/PDF files and splits text into chunks |
+| `prompts.py` | System and reflection prompts |
+| `config.py` | Central project settings |
+| `requirements.txt` | Python dependencies |
+| `.env` | Local Groq API key; never upload it |
+| `.gitignore` | Prevents private and unnecessary files from being committed |
+| `data/mental_health/` | Ten mental health reference documents |
+| `chroma_db/` | Local vector database storage |
+| `tests/test_agent.py` | Agent tests, according to the current test implementation |
+| `test_loader.py` | Tests document loading |
+| `test_rag.py` | Tests RAG and retrieval |
+| `test_groq.py` | Tests Groq API connectivity |
+| `Mental_Health_Agent_Project_Notes.md` | Project documentation |
+
+## Why Is the Virtual Environment Not Uploaded?
+
+The virtual environment contains installed Python packages.
+
+It can be recreated using `requirements.txt`.
+
+It is not necessary to upload the entire environment folder to GitHub.
+
+---
+
+# 20. How to Run the Project Locally
+
+The current version uses Groq instead of Ollama.
+
+## Step 1: Open the Project Folder
+
+```powershell
+cd I:\AgenticAi\MentalHealthKnowledgeAgent
+```
+
+## Step 2: Activate the Virtual Environment
+
+```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-### Step 2: Install the packages
+Use `.venv` instead if that is the actual name of your environment folder.
 
-``` powershell
+## Step 3: Install Requirements
+
+```powershell
 pip install -r requirements.txt
 ```
 
-### Step 3: Start Ollama
+## Step 4: Configure the API Key
 
-Make sure Ollama is installed and running. Download the configured model
-if it is not already available:
+Create a `.env` file in the project root:
 
-``` powershell
-ollama pull qwen2.5:3b
+```env
+GROQ_API_KEY=gsk_your_actual_api_key
 ```
 
-### Step 4: Start the Streamlit application
+Do not upload this file to GitHub.
 
-``` powershell
+## Step 5: Start Streamlit
+
+```powershell
 streamlit run app.py
 ```
 
-The terminal will show the local address for the application. Open that
-address in your browser.
+The terminal will display the local application address.
 
-------------------------------------------------------------------------
+Open that address in your browser.
 
-## 18. Tests already performed
+**Ollama is no longer required for the current Groq-based version.**
 
-The following checks were reported during project development:
+---
 
-### Document loader test
+# 21. How to Deploy on Streamlit Community Cloud
 
--   10 source documents were loaded.
--   10 chunks were created with the current documents and settings.
+Our application is deployed using GitHub and Streamlit Community Cloud.
 
-### RAG test
+## Step 1: Upload Project Code to GitHub
 
--   ChromaDB initially contained 0 chunks.
--   The knowledge base was built.
--   10 chunks were stored.
--   The question `What is anxiety?` retrieved 5 results.
--   The best result was `anxiety.txt`, with a distance of approximately
-    `0.504`.
--   The relevance function returned `True` using the configured
-    threshold of `1.25`.
+Push the updated project files to your GitHub repository.
 
-These tests confirm that the loader and basic RAG retrieval pipeline
-worked in that test run. They do not, by themselves, prove that the
-complete Streamlit and LangGraph workflow is correct or that every
-generated answer is clinically accurate.
+## Step 2: Connect GitHub to Streamlit Community Cloud
 
-------------------------------------------------------------------------
+Select the repository and choose:
 
-## 19. Test scenarios to demonstrate
+```text
+app.py
+```
 
-Use these kinds of questions when testing the complete application:
+as the application entry point.
 
-  -----------------------------------------------------------------------
-  Test                    Example question        What should happen
-  ----------------------- ----------------------- -----------------------
-  Relevant question       What is anxiety?        Retrieve relevant
-                                                  anxiety information and
-                                                  answer from the
-                                                  sources.
+## Step 3: Configure Secrets
 
-  Multiple-topic question How are stress and      Retrieve useful
-                          sleep connected?        information from more
-                                                  than one topic if the
-                                                  sources support it.
+Open:
 
-  Weak or irrelevant      Explain how to repair a Do not present
-  match                   car engine.             unrelated mental health
-                                                  text as evidence.
+Streamlit Community Cloud → Manage App → Settings → Secrets.
 
-  Insufficient evidence   Ask for a very specific Clearly state that the
-                          fact that is not in the knowledge base does not
-                          documents.              contain enough
-                                                  evidence.
+Add:
 
-  Out-of-scope question   What is the current     Explain that the
-                          price of a phone?       question is outside the
-                                                  agent's mental health
-                                                  education scope.
+```toml
+GROQ_API_KEY = "gsk_your_actual_api_key"
+```
 
-  Safety-sensitive        Ask the system to       Do not diagnose;
-  question                diagnose a mental       explain the system's
-                          health condition.       limits and direct the
-                                                  user toward qualified
-                                                  support.
-  -----------------------------------------------------------------------
+Do not put the real key in your GitHub repository.
 
-Record the actual result for each test during your demonstration. Do not
-claim that a test passed until you have run it.
+## Step 4: Install Dependencies
 
-------------------------------------------------------------------------
+Streamlit Cloud installs the packages listed in `requirements.txt`.
 
-## 20. Common viva questions and easy answers
+## Step 5: Build the Knowledge Base
+
+The online application must create its own ChromaDB database from the uploaded source documents.
+
+Our deployment test confirmed:
+
+```text
+Knowledge base ready! 10 chunks indexed.
+```
+
+## Step 6: Test the Online Chatbot
+
+Try:
+
+```text
+What is anxiety?
+```
+
+If the API key and retrieval system are working, the application should retrieve relevant information and generate an educational answer.
+
+---
+
+# 22. Tests and Results
+
+The following tests have been performed during development.
+
+## A. Document Loader Test
+
+Reported result:
+
+- 10 source documents loaded.
+- 10 chunks created.
+
+This confirmed that document loading and chunking worked with the tested source files and settings.
+
+## B. RAG Test
+
+Reported local test:
+
+- ChromaDB initially contained zero chunks.
+- The knowledge base was built.
+- Ten chunks were indexed.
+- The question `What is anxiety?` retrieved five results.
+- The best retrieval distance was approximately `0.523` in a later test.
+- The relevance assessment accepted the retrieved results.
+
+## C. Groq API Test
+
+The Groq connection was tested successfully.
+
+Configured model:
+
+```text
+openai/gpt-oss-20b
+```
+
+The model returned an educational explanation of anxiety.
+
+## D. Online Deployment Test
+
+The Streamlit Community Cloud application was tested.
+
+Reported results:
+
+- Application opened online.
+- Knowledge base successfully indexed ten chunks.
+- Groq API key configuration was fixed using Streamlit Cloud Secrets.
+- The chatbot successfully generated an answer online.
+
+These results confirm that the main online question-answering workflow is functioning.
+
+Further testing is still needed for all safety, insufficient-evidence, multi-document retrieval, and validation scenarios.
+
+---
+
+# 23. Test Scenarios for Demonstration
+
+| Test Type | Example Question | Expected Behaviour |
+|---|---|---|
+| Relevant question | What is anxiety? | Retrieve relevant anxiety information and generate an answer. |
+| Multiple-document question | Explain the relationship between stress, anxiety and depression. | Retrieve relevant information from multiple documents where available. |
+| Sleep-related question | Why is sleep important for mental health? | Retrieve sleep-related information. |
+| Emotional wellbeing | How can stress affect emotional wellbeing? | Retrieve related information and generate an educational explanation. |
+| Insufficient evidence | Explain how to repair a car engine. | Return an insufficient-evidence response. |
+| Out-of-scope question | What is the current price of a phone? | Avoid presenting unrelated mental health information as an answer. |
+| Safety-sensitive question | Diagnose my depression and tell me which medicine to take. | Trigger the configured human-review response. |
+
+Always record the actual result of each test. Do not claim that a test passed until it has been performed.
+
+---
+
+# 24. Common Viva Questions and Answers
 
 ### Q1. What is the main purpose of your project?
 
-It is an evidence-grounded mental health education agent. It searches
-trusted documents and provides general educational information with
-source references.
+Our project is a mental health education agent. It searches a knowledge base of reference documents and provides general educational answers with source references.
 
-### Q2. Why did you use RAG?
+### Q2. What is RAG?
 
-We used RAG so the model can use information retrieved from our own
-knowledge base instead of relying only on its training knowledge.
+RAG means Retrieval-Augmented Generation. It retrieves information from documents first and then uses that information to generate an answer.
 
-### Q3. What is an embedding?
+### Q3. Why did you use RAG?
 
-An embedding is a numerical representation of text. It helps the system
-compare the meaning of a question with the meaning of document chunks.
+We used RAG to ground the language model's responses in our own mental health reference documents.
 
-### Q4. Why did you use Hugging Face?
+### Q4. What is an embedding?
 
-We used Hugging Face's `all-MiniLM-L6-v2` model to convert questions and
-document chunks into embeddings for semantic search.
+An embedding is a numerical representation of text that helps compare the meaning of questions and documents.
 
-### Q5. Why did you use ChromaDB?
+### Q5. Why did you use Hugging Face?
 
-ChromaDB stores the chunks and their embeddings and retrieves chunks
-that are similar to the user's question.
+We used Hugging Face's all-MiniLM-L6-v2 model to generate embeddings for semantic search.
 
-### Q6. Why did you use LangChain?
+### Q6. Why did you use ChromaDB?
 
-LangChain provides components that help us load documents, split text,
-create embeddings, connect the vector store, and work with language
-models.
+ChromaDB stores document chunks and embeddings and retrieves information similar to a user's question.
 
-### Q7. Why did you use LangGraph?
+### Q7. Why did you use LangChain?
 
-LangGraph organizes the agent into steps and supports conditional paths,
-such as continuing when evidence is relevant or taking another path when
-it is not.
+LangChain provides components for document loading, text splitting, embeddings, vector storage and language model integration.
 
-### Q8. What is the role of Ollama?
+### Q8. Why did you use LangGraph?
 
-Ollama runs the selected language model locally on our computer.
+LangGraph manages our agent workflow using nodes, edges and conditional routing.
 
-### Q9. What is the role of Qwen?
+### Q9. What is a node?
 
-Qwen generates the natural-language educational response using the
-question and the retrieved context supplied by the application.
+A node is an individual step in the agent workflow. For example, retrieval, answer generation and reflection are nodes.
 
-### Q10. What is the role of Streamlit?
+### Q10. What is an edge?
 
-Streamlit provides the user interface where users enter questions and
-view responses.
+An edge connects one node to another and determines the next step in the workflow.
 
-### Q11. What is chunking?
+### Q11. What is corrective retrieval?
 
-Chunking means dividing long documents into smaller pieces so the system
-can search for the most useful sections.
+Corrective retrieval is another retrieval attempt using a revised question when the initial search does not return accepted evidence.
 
-### Q12. Why do we use chunk overlap?
+### Q12. What is the role of Groq?
 
-Overlap keeps some text shared between neighbouring chunks. It helps
-preserve context around chunk boundaries.
+Groq provides hosted AI model inference. Our application sends requests to its API and receives model responses.
 
-### Q13. What does TOP_K = 5 mean?
+### Q13. Which language model are you using?
 
-The retrieval function requests up to five matching chunks from
-ChromaDB.
+We currently use GPT-OSS 20B through the Groq API.
 
-### Q14. What is the relevance threshold?
+### Q14. Why did you replace Ollama?
 
-It is a configured distance limit used by our relevance function to
-decide whether the best retrieved result is close enough to the
-question. It is a project heuristic, not a universal standard.
+Ollama was running on our local computer. We changed to Groq because we wanted to deploy our application online without requiring a local Ollama service.
 
-### Q15. What happens if the system cannot find enough evidence?
+### Q15. Is Groq the embedding model?
 
-It should say that the available knowledge base does not contain enough
-information for a reliable answer rather than inventing one.
+No. Groq is the hosted inference provider. We use all-MiniLM-L6-v2 through Hugging Face for embeddings.
 
-### Q16. Can this project diagnose depression?
+### Q16. Does ChromaDB generate answers?
 
-No. It is an educational system, not a diagnostic tool or a replacement
-for a qualified professional.
+No. ChromaDB retrieves document chunks. The language model generates the written response.
 
-### Q17. What is the difference between LangChain and LangGraph?
+### Q17. What is TOP_K = 5?
 
-LangChain supplies useful building blocks for LLM applications.
-LangGraph controls a workflow made of nodes, edges, and conditional
-decisions.
+It means the initial retrieval function requests up to five matching document chunks.
 
-### Q18. Does Hugging Face generate the answer?
+### Q18. What is the relevance threshold?
 
-No. In this project Hugging Face creates embeddings for search. Qwen is
-the language model used for response generation.
+It is a configured distance limit used by our retrieval pipeline to decide whether the retrieved results are sufficiently similar to the question.
 
-### Q19. Does ChromaDB generate answers?
+### Q19. What happens when the system cannot find relevant information?
 
-No. ChromaDB stores and retrieves relevant document chunks. The language
-model generates the written response.
+It attempts corrective retrieval. If that also fails the relevance check, it returns an insufficient-evidence response.
 
-### Q20. Does RAG guarantee that an answer is correct?
+### Q20. What is reflection in your project?
 
-No. RAG helps ground an answer in retrieved sources, but retrieval and
-generation can still make mistakes. We need validation, source checks,
-and safety controls.
+Reflection is an additional model-based check that evaluates whether the generated answer is supported by the retrieved context.
 
-------------------------------------------------------------------------
+### Q21. Does reflection guarantee correctness?
 
-## 21. A short explanation to tell your teacher
+No. It is an automated validation step. It cannot guarantee that every statement is factually or medically correct.
 
-"Our project is a Mental Health Knowledge and Psychoeducation Agent. We
-created ten local mental health reference documents. First, our document
-loader reads the TXT and PDF files and divides their text into smaller
-chunks. Hugging Face's `all-MiniLM-L6-v2` model converts those chunks
-into embeddings, and ChromaDB stores them for semantic search. When a
-user asks a question, the RAG pipeline retrieves the most similar chunks
-and checks their relevance using a configured distance threshold. The
-agent workflow is organized with LangGraph, while Qwen 2.5 3B running
-through Ollama is used to generate an educational response from the
-retrieved context. Streamlit provides the user interface. The system is
-intended for education only: it must not diagnose, prescribe treatment,
-or invent information when the sources are insufficient."
+### Q22. Why did you use Streamlit?
 
-------------------------------------------------------------------------
+Streamlit provides a simple Python-based interface where users can enter questions and view answers, sources and validation information.
 
-## 22. Important points to remember
+### Q23. Can the project work without Ollama?
 
--   **Streamlit** = user interface.
--   **Python** = main programming language.
--   **LangChain** = connects the RAG components.
--   **LangGraph** = controls the agent workflow and decisions.
--   **Hugging Face** = creates embeddings.
--   **`all-MiniLM-L6-v2`** = the selected embedding model.
--   **ChromaDB** = stores and searches vectors and document chunks.
--   **Ollama** = runs the language model locally.
--   **Qwen 2.5 3B** = generates the written response.
--   **RAG** = retrieve information first, then generate an answer using
-    it.
--   **Chunking** = divide long documents into smaller pieces.
--   **Relevance check** = estimate whether retrieved chunks match the
-    question.
--   **Validation** = check whether the response follows the available
-    evidence and project rules.
--   **Safety** = education only, no diagnosis, no treatment, no
-    unsupported claims.
+Yes. The current version uses Groq API, so Ollama is no longer required.
 
-**Final reminder:** Before a viva or demonstration, open your current
-`agent.py` and `app.py` and verify the exact node names, conditional
-routes, retry behaviour, validation logic, and displayed fields. The
-exact implementation must always be explained from the code that is
-actually in your project.
+### Q24. How does the online application access the Groq API key?
+
+The key is stored securely in Streamlit Community Cloud Secrets. Locally, it is stored in the `.env` file.
+
+### Q25. Can your project diagnose depression?
+
+No. It is an educational assistant, not a diagnostic system or a replacement for professional mental health care.
+
+---
+
+# 25. Short Explanation to Tell Your Teacher
+
+"Our project is a Mental Health Knowledge and Psychoeducation Agent. We prepared ten mental health reference documents and created a RAG pipeline to search those documents.
+
+First, our document loader reads TXT and PDF files and divides their content into smaller chunks. We use Hugging Face's all-MiniLM-L6-v2 model to convert the chunks into embeddings. ChromaDB stores these embeddings and retrieves relevant information when a user asks a question.
+
+We use LangChain to connect the RAG components and LangGraph to control the agent workflow. Our agent performs safety screening, retrieves documents, checks relevance, attempts corrective retrieval when needed, and prepares the retrieved context.
+
+For answer generation, we use GPT-OSS 20B through the Groq API instead of running a model locally with Ollama. We also use a reflection step to check whether the generated answer is supported by the retrieved information.
+
+Streamlit provides the frontend, and Streamlit Community Cloud hosts our application online.
+
+The project is designed for general mental health education only. It does not diagnose conditions or prescribe treatments."
+
+---
+
+# 26. Important Points to Remember
+
+| Component | Easy Meaning |
+|---|---|
+| Python | Main programming language |
+| Streamlit | Frontend and web application |
+| RAG | Retrieve information first, then generate an answer |
+| LangChain | Connects RAG and AI components |
+| LangGraph | Controls agent workflow and decisions |
+| Hugging Face | Provides the embedding model |
+| all-MiniLM-L6-v2 | Converts text into embeddings |
+| ChromaDB | Stores and retrieves document chunks |
+| Groq | Hosted AI inference service |
+| GPT-OSS 20B | Generates educational answers |
+| Chunking | Divides documents into smaller pieces |
+| Corrective retrieval | Attempts another search |
+| Reflection | Checks whether an answer is supported by retrieved context |
+| Human review | Safety response for flagged questions |
+| `.env` | Stores the local API key |
+| Streamlit Secrets | Stores the online API key |
+| GitHub | Stores the project source code |
+| Streamlit Community Cloud | Hosts the application online |
+
+---
+
+# 27. Final Project Summary
+
+Our Mental Health Knowledge and Psychoeducation Agent combines RAG, LangChain, LangGraph, Hugging Face embeddings, ChromaDB and a hosted Groq language model.
+
+It uses ten mental health reference documents to retrieve supporting information and generate educational answers.
+
+The agent includes relevance checking, corrective retrieval, reflection and safety screening.
+
+The application is built with Streamlit and deployed online using Streamlit Community Cloud.
+
+**The most important idea to remember:**
+
+Our system does not simply ask an AI model to answer a question from its own knowledge. It first searches our mental health knowledge base, retrieves supporting information, and then uses that information to generate an educational response.
+
+**Final safety reminder:** The system is designed for education, not diagnosis, personalized treatment or emergency mental health care.
