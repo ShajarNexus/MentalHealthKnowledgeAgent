@@ -1,16 +1,19 @@
 
+import os
+from pathlib import Path
 from typing import TypedDict
 
-from langgraph.graph import StateGraph, END
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
 
-from langchain_ollama import ChatOllama
+from langgraph.graph import StateGraph, END
 
 from langchain_core.messages import (
     SystemMessage,
     HumanMessage
 )
 
-from config import OLLAMA_MODEL, OLLAMA_BASE_URL, TOP_K
+from config import TOP_K
 
 from rag_pipeline import (
     retrieve_documents,
@@ -20,6 +23,13 @@ from rag_pipeline import (
 from prompts import (
     SYSTEM_PROMPT,
     REFLECTION_PROMPT
+)
+
+
+# Load API key from .env file
+
+load_dotenv(
+    dotenv_path=Path(__file__).resolve().parent / ".env"
 )
 
 
@@ -52,15 +62,24 @@ class AgentState(TypedDict, total=False):
     status: str
 
 
-# 2. Load Local AI Model
+# 2. Load Groq AI Model
 
 def get_model():
 
-    return ChatOllama(
+    api_key = os.getenv("GROQ_API_KEY")
 
-        model=OLLAMA_MODEL,
+    if not api_key:
 
-        base_url=OLLAMA_BASE_URL,
+        raise ValueError(
+            "GROQ_API_KEY not found. "
+            "Please check your .env file."
+        )
+
+    return ChatGroq(
+
+        model="openai/gpt-oss-20b",
+
+        api_key=api_key,
 
         temperature=0.1
 
@@ -107,7 +126,9 @@ def safety_screen_node(state):
     )
 
     return {
+
         "needs_human_review": flagged
+
     }
 
 
@@ -221,8 +242,11 @@ def prepare_context_node(state):
     for document, distance in state["retrieved"]:
 
         source = document.metadata.get(
+
             "source",
+
             "Unknown"
+
         )
 
         context_parts.append(
@@ -288,7 +312,9 @@ def generate_node(state):
     messages = [
 
         SystemMessage(
+
             content=SYSTEM_PROMPT
+
         ),
 
         HumanMessage(
@@ -320,14 +346,16 @@ def generate_node(state):
     }
 
 
-# 10. Reflection Node
+# 10. Reflection Node - Improved Validation
 
 def reflect_node(state):
 
     messages = [
 
         SystemMessage(
+
             content=REFLECTION_PROMPT
+
         ),
 
         HumanMessage(
@@ -340,7 +368,11 @@ def reflect_node(state):
 
                 f"Generated answer:\n"
 
-                f"{state['draft_answer']}"
+                f"{state['draft_answer']}\n\n"
+
+                "Start your response with exactly one verdict: "
+
+                "SUPPORTED or NOT SUPPORTED."
 
             )
 
@@ -350,9 +382,41 @@ def reflect_node(state):
 
     response = get_model().invoke(messages)
 
-    reflection = response.content.strip()
+    reflection = str(response.content).strip()
 
-    if reflection.upper().startswith("SUPPORTED"):
+    # Normalize Markdown formatting before checking verdict
+
+    normalized = reflection.upper()
+
+    for character in [
+
+        "*",
+
+        "#",
+
+        "`",
+
+        ">",
+
+        " ",
+
+        "\n",
+
+        "\t"
+
+    ]:
+
+        normalized = normalized.lstrip(character)
+
+    # Accept only an explicit SUPPORTED verdict
+
+    if (
+
+        normalized.startswith("SUPPORTED")
+
+        and not normalized.startswith("SUPPORTED NOT")
+
+    ):
 
         return {
 
@@ -425,43 +489,67 @@ def build_agent():
     graph = StateGraph(AgentState)
 
     graph.add_node(
+
         "safety_screen",
+
         safety_screen_node
+
     )
 
     graph.add_node(
+
         "retrieve",
+
         retrieve_node
+
     )
 
     graph.add_node(
+
         "corrective_retrieval",
+
         corrective_retrieval_node
+
     )
 
     graph.add_node(
+
         "prepare_context",
+
         prepare_context_node
+
     )
 
     graph.add_node(
+
         "generate",
+
         generate_node
+
     )
 
     graph.add_node(
+
         "reflect",
+
         reflect_node
+
     )
 
     graph.add_node(
+
         "insufficient",
+
         insufficient_node
+
     )
 
     graph.add_node(
+
         "human_review",
+
         human_review_node
+
     )
 
     graph.set_entry_point("safety_screen")
@@ -517,28 +605,43 @@ def build_agent():
     )
 
     graph.add_edge(
+
         "prepare_context",
+
         "generate"
+
     )
 
     graph.add_edge(
+
         "generate",
+
         "reflect"
+
     )
 
     graph.add_edge(
+
         "reflect",
+
         END
+
     )
 
     graph.add_edge(
+
         "human_review",
+
         END
+
     )
 
     graph.add_edge(
+
         "insufficient",
+
         END
+
     )
 
     return graph.compile()
